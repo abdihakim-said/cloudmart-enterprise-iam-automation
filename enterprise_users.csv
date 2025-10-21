@@ -1,0 +1,5 @@
+username,department,role,manager_email,start_date,access_level,business_justification
+john.doe,engineering,developer,sarah.manager@cloudmart.com,2024-01-15,medium,Need AWS access for microservices development and deployment
+jane.smith,data,data-analyst,mike.lead@cloudmart.com,2024-01-16,high,Require access to data lakes and analytics tools for customer insights project
+bob.wilson,security,security-auditor,alice.ciso@cloudmart.com,2024-01-17,high,Security compliance auditing and vulnerability assessments across all environments
+mary.johnson,finance,readonly,tom.cfo@cloudmart.com,2024-01-18,low,Monthly cost analysis and resource utilization reporting for budget planning
