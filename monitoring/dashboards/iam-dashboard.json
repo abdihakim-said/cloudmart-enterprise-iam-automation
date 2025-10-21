@@ -1,0 +1,47 @@
+{
+  "dashboard": {
+    "title": "Enterprise IAM Analytics",
+    "panels": [
+      {
+        "title": "User Creation Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(iam_users_created_total[5m])",
+            "legendFormat": "Users/min"
+          }
+        ]
+      },
+      {
+        "title": "Policy Violations",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "iam_policy_violations_total",
+            "legendFormat": "Violations"
+          }
+        ]
+      },
+      {
+        "title": "Access Anomalies",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "iam_access_anomalies",
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "title": "Multi-Cloud Coverage",
+        "type": "piechart",
+        "targets": [
+          {
+            "expr": "iam_cloud_coverage_by_provider",
+            "legendFormat": "{{provider}}"
+          }
+        ]
+      }
+    ]
+  }
+}
