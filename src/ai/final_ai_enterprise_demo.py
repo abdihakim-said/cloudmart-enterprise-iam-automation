@@ -352,14 +352,9 @@ def main():
         print(f"\n🎉 CloudMart AI Demo Complete!")
         print(f"🏆 Enterprise AI Integration Successful!")
         
-        print(f"\n🎯 Interview Highlights:")
-        print(f"   ✅ AI-powered policy generation for 4 enterprise roles")
-        print(f"   ✅ Real-time security analysis with risk scoring")
-        print(f"   ✅ Multi-department support (DevOps, AI/ML, Security, FinOps)")
-        print(f"   ✅ Production-ready enterprise controls")
-        print(f"   ✅ Compliance automation (SOC2/ISO27001)")
-        
-        print(f"\n🚀 Ready for CloudMart Interview!")
+        print(f"\n📝 Summary:")
+        print(f"   • Draft policies generated for 4 example roles")
+        print(f"   • Drafts are NOT validated yet - see README 'Known limitations'")
         
     except Exception as e:
         print(f"❌ Demo failed: {e}")
