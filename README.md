@@ -1,310 +1,82 @@
-# 🏢 CloudMart Enterprise IAM Automation Platform
+# AI-Assisted IAM Provisioning on AWS (Prototype)
 
-[![AWS](https://img.shields.io/badge/AWS-FF9900?style=flat&logo=amazon-aws&logoColor=white)](https://aws.amazon.com/)
-[![Terraform](https://img.shields.io/badge/Terraform-623CE4?style=flat&logo=terraform&logoColor=white)](https://terraform.io/)
-[![Python](https://img.shields.io/badge/Python-3776AB?style=flat&logo=python&logoColor=white)](https://python.org/)
-[![AI](https://img.shields.io/badge/AI-Bedrock-orange)](https://aws.amazon.com/bedrock/)
+A prototype that turns an access request written in plain English ("data analyst who needs read access to the analytics lake") into a draft IAM policy with **Amazon Bedrock (Claude)**. It then provisions roles, permission boundaries and MFA enforcement with Python/boto3 and Terraform.
 
-> **Enterprise-grade IAM automation platform with AI-powered policy generation, achieving 95% time savings and 100% compliance automation.**
+> **Prototype, not a product.** I built and ran this in my own AWS dev account. "CloudMart" is a fictional e-commerce company used as the scenario, and the users in `enterprise_users.csv` are made up. The interesting part is the design question it raises: **how do you let an LLM draft access policies without letting it grant access?** Section 4 is my answer.
 
 ---
 
-## 🎯 **PROBLEM STATEMENT**
+## 1. Problem
 
-### **Business Challenge**
-Enterprise organizations struggle with manual IAM management, leading to:
-- **$450K annual costs** for 10K users (manual process)
-- **15-20% error rate** in manual configurations
-- **3-5 day delays** for new employee onboarding
-- **Compliance gaps** in audit trails and documentation
-- **Security risks** from inconsistent policy application
+Access requests arrive as free text ("needs S3 and Glue for the churn project"). An engineer then hand-writes a policy, usually too broad, because least privilege is slow to get right. LLMs are good at the translation step, but an LLM that can write IAM policies is a privilege-escalation path unless its output is treated as **untrusted input**.
 
-### **Solution Impact**
-- **93% cost reduction** ($450K → $30K annually)
-- **95% time savings** (4 hours → 12 minutes per user)
-- **Zero security violations** with automated controls
-- **100% compliance** with SOC2/ISO27001 automation
-- **3.68 users/second** proven scale performance
+## 2. Architecture
 
----
-
-## 🏗️ **ARCHITECTURE OVERVIEW**
-
-![CloudMart Enterprise IAM Architecture](generated-diagrams/cloudmart-iam-architecture.png)
-
-> **Enterprise-grade architecture diagram showing horizontal data flow from input sources through AI processing to AWS infrastructure deployment**
-
-### **Architecture Flow (Left → Right)**
-1. **Input Sources:** Admin users upload CSV data or make API calls
-2. **AI Processing:** Amazon Bedrock (Claude 3 Sonnet) generates IAM policies from natural language
-3. **Core Automation:** Compliance validation, user provisioning, and Terraform deployment
-4. **AWS Infrastructure:** IAM service creates users, roles, and security controls
-5. **Security Controls:** MFA enforcement, permission boundaries, and enterprise roles
-6. **Monitoring & Compliance:** CloudTrail audit logging with SOC2/ISO27001 reporting
-
-### **Technology Stack**
-- **Infrastructure:** Terraform, AWS IAM, S3, CloudTrail
-- **Automation:** Python 3.9+, boto3, concurrent processing
-- **AI Integration:** Amazon Bedrock, Claude 3 Sonnet
-- **Security:** Permission boundaries, MFA enforcement, zero-trust
-- **Monitoring:** CloudWatch, custom metrics, audit logging
-
----
-
-## 📁 **PROJECT STRUCTURE**
-
-```
-iam-automation/
-├── 📖 docs/                          # Documentation
-│   ├── EXECUTIVE_SUMMARY.md          # Business case & ROI
-│   ├── PROJECT_TUTORIAL.md           # Complete learning guide
-│   ├── architecture/                 # Architecture documentation
-│   ├── implementation/               # Technical implementation
-│   └── operations/                   # Operational guides
-│
-├── 🏗️ terraform/                     # Infrastructure as Code
-│   ├── modules/                      # Reusable Terraform modules
-│   │   ├── iam-roles/               # Core IAM role definitions
-│   │   └── enterprise-iam/          # Enterprise security controls
-│   └── environments/                 # Environment-specific configs
-│       ├── dev/                     # Development environment
-│       ├── staging/                 # Staging environment
-│       └── prod/                    # Production environment
-│
-├── 🐍 src/                          # Source code
-│   ├── core/                        # Core automation scripts
-│   │   ├── deploy_enterprise_iam.py         # Main deployment engine
-│   │   ├── deploy_enterprise_iam_scale.py   # Scale testing system
-│   │   ├── user_access_manager.py           # User credential management
-│   │   ├── enterprise_iam_manager.py        # Enterprise user management
-│   │   └── cloud_iam_sync.py               # Multi-cloud synchronization
-│   ├── ai/                          # AI integration
-│   │   ├── bedrock_policy_generator.py      # AI policy generation
-│   │   ├── final_ai_enterprise_demo.py      # AI demonstration
-│   │   └── access_anomaly_detector.py       # ML-based monitoring
-│   └── security/                    # Security components
-│       ├── compliance_validator.py          # Compliance checking
-│       └── audit_logger.py                  # Audit trail management
-│
-├── 🧪 tests/                        # Testing suite
-│   ├── unit/                        # Unit tests
-│   ├── integration/                 # Integration tests
-│   │   └── test_basic_ai.py         # AI integration tests
-│   └── e2e/                         # End-to-end tests
-│
-├── 📊 monitoring/                   # Monitoring & observability
-│   ├── dashboards/                  # Grafana dashboards
-│   │   └── iam-dashboard.json       # IAM metrics dashboard
-│   ├── alerts/                      # Prometheus alerts
-│   └── metrics/                     # Custom metrics
-│
-├── 🔧 scripts/                      # Utility scripts
-│   ├── deployment/                  # Deployment automation
-│   └── maintenance/                 # Maintenance scripts
-│       └── cleanup_aws_resources.py # Resource cleanup
-│
-├── 📋 data/                         # Data files
-│   ├── enterprise_users.csv        # Sample user data
-│   └── reports/                     # Generated reports
-│
-└── 🔄 .github/workflows/           # CI/CD pipeline
-    └── enterprise-iam-pipeline.yml  # Automated deployment
+```mermaid
+flowchart LR
+  R[Access request<br/>CSV / free text] --> B[Bedrock · Claude<br/>draft policy JSON]
+  B --> P[Parse + fallback<br/>to template policy]
+  P --> V{Validation<br/>today: LLM review<br/>next: Access Analyzer}
+  V --> I[boto3: role + permission<br/>boundary + MFA deny]
+  I --> CT[(CloudTrail + S3<br/>audit bucket)]
+  T[Terraform<br/>environments/dev] --> I
 ```
 
----
+| Component | File |
+|---|---|
+| Policy drafting (Claude via Bedrock, JSON extraction, fallback template) | `ai-integration/policy-generator/bedrock_policy_generator_v45.py`, `src/ai/bedrock_policy_generator.py` |
+| Provisioning: permission boundaries, roles, MFA-deny policy, audit logging | `src/core/deploy_enterprise_iam.py`, `src/core/enterprise_iam_manager.py` |
+| Terraform (roles for dev) | `terraform/environments/dev`, `terraform/modules/iam-roles` |
+| Clean-up of everything created | `scripts/maintenance/cleanup_aws_resources.py` |
 
-## 🚀 **QUICK START**
+## 3. Key decisions and trade-offs
 
-### **Prerequisites**
+- **Low temperature, JSON-only prompt, deterministic fallback.** The model is asked for policy JSON only (temperature 0.1). If parsing fails, the code falls back to a known template for the role type rather than guessing.
+- **Permission boundaries on every role.** Even if a drafted policy is too broad, the boundary caps what the role can ever do. This matters most when policies are machine-generated.
+- **MFA-deny by default.** An inline policy denies everything except MFA self-management until the principal has authenticated with MFA.
+- **Boto3 for the workflow, Terraform for the baseline.** Per-request provisioning is imperative (boto3). Standing roles live in Terraform. In a real rollout I'd move per-request resources into Terraform too, so there's one source of truth (see below).
+
+## 4. Known limitations / what I'd do next
+
+This is the honest list, and it's also the roadmap:
+
+1. **Validation is an LLM grading an LLM.** `analyze_policy_security()` asks the model to review its own draft, which is not a control. **Next:** gate every draft with deterministic checks:
+   - IAM Access Analyzer `ValidatePolicy` (errors and security warnings)
+   - `CheckNoNewAccess` against the role's approved baseline
+   - `CheckAccessNotGranted` for a deny-list (`iam:*`, `sts:AssumeRole` on `*`, `kms:Decrypt` on `*`)
+
+   A human then approves the diff in a pull request before Terraform applies it.
+2. **Prompt injection.** The free-text "business justification" goes straight into the prompt, so a request can ask for more access. The deterministic gate above is the real defence; the prompt is not.
+3. **The compliance checks are placeholders.** The "SOC 2 / ISO 27001" functions return fixed values. This repo makes **no** compliance claims.
+4. **Long-lived IAM users.** The prototype creates IAM users with console passwords. Today I'd use IAM Identity Center permission sets (or roles + SSO) and no long-lived credentials.
+5. **The role trust policies are too clever.** `aws:SourceIp` conditions with private ranges mean the roles can't be assumed over the public STS endpoint. They should be dropped in favour of SSO + MFA conditions.
+6. **Terraform is partial.** Only the `iam-roles` module is wired into `environments/dev`. The `enterprise-iam` and `iam-automation` modules are drafts and not deployed.
+7. **Multi-cloud sync (`cloud_iam_sync.py`) and anomaly detection are stubs.**
+
+## 5. Evidence
+
+- In my dev account I ran policy generation against Bedrock (Claude 3 Sonnet, then Sonnet 4.5), and created 4 test users, 3 roles with permission boundaries, an MFA-deny policy, and a CloudTrail trail with an audit bucket. `scripts/maintenance/cleanup_aws_resources.py` removes all of it.
+- A 100-user bulk-create test against IAM completed in ~27 s. Larger-scale numbers in earlier versions of this README were projections, and I've removed them.
+
+## 6. Run it yourself
+
+Prerequisites: Python 3.10+, AWS credentials for a **sandbox** account, and Bedrock model access enabled for Anthropic Claude in `us-east-1`.
+
 ```bash
-# Required tools
-terraform >= 1.5.0
-python >= 3.9
-aws-cli >= 2.0
-
-# AWS permissions
-IAM full access
-S3 full access
-CloudTrail access
-Bedrock access
-```
-
-### **Installation**
-```bash
-# 1. Clone and setup
-git clone <repository>
-cd iam-automation
-python3 -m venv venv
-source venv/bin/activate
 pip install -r requirements.txt
 
-# 2. Configure AWS
-aws configure
+# Draft a policy (no IAM changes)
+python ai-integration/policy-generator/bedrock_policy_generator_v45.py
 
-# 3. Deploy infrastructure
-cd terraform/environments/dev
-terraform init
-terraform apply
+# Terraform baseline roles
+cd terraform/environments/dev && terraform init && terraform plan
 
-# 4. Run automation
-cd ../../../
-python3 src/core/deploy_enterprise_iam.py
+# Clean up anything the scripts created
+python scripts/maintenance/cleanup_aws_resources.py
 ```
 
-### **Verification**
-```bash
-# Check created resources
-aws iam list-users
-aws iam list-roles
-aws s3 ls
-
-# Test AI integration
-python3 tests/integration/test_basic_ai.py
-
-# Run scale test
-python3 src/core/deploy_enterprise_iam_scale.py --users 10
-```
+**Cost:** pennies. The costs are a few Bedrock calls (well under $1 for experimentation) and a small CloudTrail/S3 footprint. IAM itself is free.
 
 ---
 
-## 📊 **PERFORMANCE METRICS**
-
-### **Proven Capabilities**
-- ✅ **100 users** processed in 27 seconds
-- ✅ **3.68 users/second** throughput
-- ✅ **100% success rate** in testing
-- ✅ **AI policy generation** in <5 seconds
-- ✅ **Zero security violations** detected
-
-### **Enterprise Scale Projections**
-- **Small Enterprise (1K-5K):** 2-10 minutes
-- **Medium Enterprise (5K-25K):** 10-60 minutes
-- **Large Enterprise (25K-100K):** 1-4 hours
-- **Fortune 500 (100K+):** 4-12 hours
-
----
-
-## 🛡️ **SECURITY & COMPLIANCE**
-
-### **Security Controls**
-- **Permission Boundaries:** Prevent privilege escalation
-- **MFA Enforcement:** Required for all operations
-- **IP Restrictions:** Corporate network access only
-- **Session Timeouts:** Role-based duration limits
-- **Zero-Trust:** Deny by default, explicit allow
-
-### **Compliance Frameworks**
-- **SOC 2 Type II:** Automated controls and reporting
-- **ISO 27001:** Information security management
-- **NIST Cybersecurity Framework:** Identity and access management
-- **PCI DSS:** Payment card industry standards
-- **GDPR:** Data protection and privacy
-
----
-
-## 🤖 **AI INTEGRATION**
-
-### **Natural Language Policy Generation**
-```python
-# Example usage
-generator = BedrockPolicyGenerator()
-
-policy = generator.generate_enterprise_policy(
-    description="Data scientist needs S3 access for ML training data and SageMaker for model training",
-    role_type="data-scientist",
-    department="AI/ML Research"
-)
-
-# Result: Complete IAM policy with security controls
-```
-
-### **AI Capabilities**
-- **Natural Language Processing:** Business requirements → IAM policies
-- **Security Risk Analysis:** Automated vulnerability detection
-- **Policy Optimization:** AI-driven permission refinement
-- **Compliance Validation:** Regulatory requirement checking
-
----
-
-## 📈 **BUSINESS VALUE**
-
-### **Cost Savings**
-- **Manual Process:** $45 per user (2-4 hours @ $150/hour)
-- **Automated Process:** $3 per user (12 minutes @ $150/hour)
-- **Annual Savings:** $420K for 10K users (93% reduction)
-
-### **Operational Benefits**
-- **Time to Productivity:** 3-5 days → <1 day
-- **Error Reduction:** 15-20% → <1%
-- **Compliance Readiness:** Manual → 100% automated
-- **Security Posture:** Reactive → Proactive
-
-### **Strategic Advantages**
-- **Scalability:** Handles 10X growth without additional resources
-- **Innovation:** AI-powered automation ahead of competitors
-- **Risk Reduction:** Automated security and compliance
-- **Talent Attraction:** Modern technology stack
-
----
-
-## 🎓 **LEARNING RESOURCES**
-
-### **Documentation**
-- 📖 [Executive Summary](docs/EXECUTIVE_SUMMARY.md) - Business case and ROI
-- 🎓 [Project Tutorial](docs/PROJECT_TUTORIAL.md) - Complete learning guide
-- 🏗️ [Technical Implementation](docs/implementation/TECHNICAL_IMPLEMENTATION.md) - Architecture details
-- 👥 [User Access Guide](docs/operations/USER_ACCESS_SUMMARY.md) - Operational procedures
-
-### **Getting Started**
-1. **Read:** Executive Summary for business context
-2. **Study:** Technical Implementation for architecture
-3. **Follow:** Project Tutorial for hands-on learning
-4. **Practice:** Deploy to dev environment
-
----
-
-## 🏆 **PROJECT STATUS**
-
-**✅ PRODUCTION-READY ENTERPRISE SYSTEM**
-
-- **Real AWS Deployment:** Actual infrastructure created and tested
-- **AI Integration:** Amazon Bedrock Claude 3 working
-- **Scale Proven:** 100 users in 27 seconds demonstrated
-- **Security Validated:** Zero violations with enterprise controls
-- **Compliance Ready:** SOC2/ISO27001 automation implemented
-
-**Ready for:**
-- Enterprise deployment
-- CloudMart interviews
-- Production scaling
-- Multi-cloud expansion
-
----
-
-## 📞 **SUPPORT**
-
-### **Documentation**
-- **Architecture:** [docs/architecture/](docs/architecture/)
-- **Implementation:** [docs/implementation/](docs/implementation/)
-- **Operations:** [docs/operations/](docs/operations/)
-
-### **Quick Commands**
-```bash
-# Deploy system
-make deploy-dev
-
-# Run tests
-make test-all
-
-# Scale test
-make scale-test
-
-# Cleanup
-make cleanup
-```
-
----
-
-**Built with ❤️ for CloudMart Enterprise Infrastructure Team**
-
-*Demonstrating senior-level architecture, implementation, and operational excellence in enterprise IAM automation.*
+**Abdihakim Said**, AWS Solutions Architect · CKA. I help teams adopt AI in cloud operations *safely*: LLMs draft, deterministic controls decide. Contact details are on my [GitHub profile](https://github.com/abdihakim-said).

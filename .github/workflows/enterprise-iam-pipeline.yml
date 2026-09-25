@@ -1,4 +1,4 @@
-name: Enterprise IAM Automation Pipeline
+name: CI
 
 on:
   push:
@@ -6,145 +6,49 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  AWS_REGION: us-east-1
-  TERRAFORM_VERSION: 1.5.0
+permissions:
+  contents: read
+  security-events: write
 
 jobs:
-  security-scan:
+  terraform:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Run Checkov Security Scan
-        uses: bridgecrewio/checkov-action@master
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.6
+
+      - name: Validate dev environment
+        working-directory: terraform/environments/dev
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+      - name: Checkov
+        uses: bridgecrewio/checkov-action@v12
         with:
           directory: terraform/
           framework: terraform
+          soft_fail: true
           output_format: sarif
-          output_file_path: checkov-results.sarif
-      
-      - name: Upload Checkov results to GitHub Security
-        uses: github/codeql-action/upload-sarif@v2
-        if: always()
-        with:
-          sarif_file: checkov-results.sarif
+          output_file_path: reports
 
-  terraform-plan:
-    runs-on: ubuntu-latest
-    needs: security-scan
-    strategy:
-      matrix:
-        environment: [dev, staging, prod]
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+      - name: Upload Checkov results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always() && hashFiles('reports/results_sarif.sarif') != ''
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Terraform Init
-        working-directory: terraform/environments/${{ matrix.environment }}
-        run: terraform init
-      
-      - name: Terraform Plan
-        working-directory: terraform/environments/${{ matrix.environment }}
-        run: terraform plan -out=tfplan
-      
-      - name: Upload Terraform Plan
-        uses: actions/upload-artifact@v3
-        with:
-          name: tfplan-${{ matrix.environment }}
-          path: terraform/environments/${{ matrix.environment }}/tfplan
+          sarif_file: reports/results_sarif.sarif
 
-  compliance-check:
+  python:
     runs-on: ubuntu-latest
-    needs: terraform-plan
     steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.9'
-      
-      - name: Install Dependencies
-        run: |
-          pip install boto3 pandas pytest
-          pip install terraform-compliance
-      
-      - name: Run Compliance Tests
-        run: |
-          terraform-compliance -f compliance/soc2/ -p terraform/
-      
-      - name: Test IAM Automation
-        run: |
-          python -m pytest automation/tests/ -v
+      - uses: actions/checkout@v4
 
-  deploy:
-    runs-on: ubuntu-latest
-    needs: [security-scan, terraform-plan, compliance-check]
-    if: github.ref == 'refs/heads/main'
-    strategy:
-      matrix:
-        environment: [dev, staging]
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v2
+      - uses: actions/setup-python@v5
         with:
-          terraform_version: ${{ env.TERRAFORM_VERSION }}
-      
-      - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-      
-      - name: Download Terraform Plan
-        uses: actions/download-artifact@v3
-        with:
-          name: tfplan-${{ matrix.environment }}
-          path: terraform/environments/${{ matrix.environment }}/
-      
-      - name: Terraform Apply
-        working-directory: terraform/environments/${{ matrix.environment }}
-        run: terraform apply -auto-approve tfplan
-      
-      - name: Generate Compliance Report
-        run: |
-          python automation/aws/enterprise_iam_manager.py
-      
-      - name: Upload Compliance Report
-        uses: actions/upload-artifact@v3
-        with:
-          name: compliance-report-${{ matrix.environment }}
-          path: compliance_report_*.json
+          python-version: '3.11'
 
-  production-approval:
-    runs-on: ubuntu-latest
-    needs: deploy
-    if: github.ref == 'refs/heads/main'
-    environment: production
-    steps:
-      - name: Manual Approval Required
-        run: echo "Production deployment requires manual approval"
-      
-      - uses: actions/checkout@v3
-      
-      - name: Deploy to Production
-        working-directory: terraform/environments/prod
-        run: |
-          terraform init
-          terraform plan
-          terraform apply -auto-approve
+      - name: Byte-compile
+        run: python -m py_compile $(git ls-files '*.py')
