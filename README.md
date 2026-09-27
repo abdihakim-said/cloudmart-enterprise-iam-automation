@@ -79,4 +79,4 @@ python scripts/maintenance/cleanup_aws_resources.py
 
 ---
 
-**Abdihakim Said**, AWS Solutions Architect · CKA. I help teams adopt AI in cloud operations *safely*: LLMs draft, deterministic controls decide. Contact details are on my [GitHub profile](https://github.com/abdihakim-said).
+**Abdihakim Said**, AWS Solutions Architect Associate · CKA. I help teams adopt AI in cloud operations *safely*: LLMs draft, deterministic controls decide. Contact details are on my [GitHub profile](https://github.com/abdihakim-said).
