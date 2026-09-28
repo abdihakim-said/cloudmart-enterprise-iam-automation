@@ -12,6 +12,10 @@ Access requests arrive as free text ("needs S3 and Glue for the churn project").
 
 ## 2. Architecture
 
+![Architecture walkthrough: LLM drafts, gate validates, permission boundaries cap, CloudTrail audits](docs/images/architecture-flow.gif)
+
+<sub>Static diagram: [docs/images/architecture.png](docs/images/architecture.png)</sub>
+
 ```mermaid
 flowchart LR
   R[Access request<br/>CSV / free text] --> B[Bedrock · Claude<br/>draft policy JSON]
