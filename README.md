@@ -1,8 +1,8 @@
-# AI-Assisted IAM Provisioning on AWS (Prototype)
+# AI-Assisted IAM Provisioning on AWS
 
-A prototype that turns an access request written in plain English ("data analyst who needs read access to the analytics lake") into a draft IAM policy with **Amazon Bedrock (Claude)**. It then provisions roles, permission boundaries and MFA enforcement with Python/boto3 and Terraform.
+A tool that turns an access request written in plain English ("data analyst who needs read access to the analytics lake") into a draft IAM policy with **Amazon Bedrock (Claude)**. It then provisions roles, permission boundaries and MFA enforcement with Python/boto3 and Terraform.
 
-> **Prototype, not a product.** I built and ran this in my own AWS dev account. "CloudMart" is a fictional e-commerce company used as the scenario, and the users in `enterprise_users.csv` are made up. The interesting part is the design question it raises: **how do you let an LLM draft access policies without letting it grant access?** Section 4 is my answer.
+> **Published in anonymised form.** Employer and client details, data and credentials have been removed: "CloudMart" is a placeholder company name, and the users in `enterprise_users.csv` are sample data. The interesting part is the design question it raises: **how do you let an LLM draft access policies without letting it grant access?** Section 4 is my answer.
 
 ---
 
@@ -48,7 +48,7 @@ This is the honest list, and it's also the roadmap:
    A human then approves the diff in a pull request before Terraform applies it.
 2. **Prompt injection.** The free-text "business justification" goes straight into the prompt, so a request can ask for more access. The deterministic gate above is the real defence; the prompt is not.
 3. **The compliance checks are placeholders.** The "SOC 2 / ISO 27001" functions return fixed values. This repo makes **no** compliance claims.
-4. **Long-lived IAM users.** The prototype creates IAM users with console passwords. Today I'd use IAM Identity Center permission sets (or roles + SSO) and no long-lived credentials.
+4. **Long-lived IAM users.** This version creates IAM users with console passwords. Today I'd use IAM Identity Center permission sets (or roles + SSO) and no long-lived credentials.
 5. **The role trust policies are too clever.** `aws:SourceIp` conditions with private ranges mean the roles can't be assumed over the public STS endpoint. They should be dropped in favour of SSO + MFA conditions.
 6. **Terraform is partial.** Only the `iam-roles` module is wired into `environments/dev`. The `enterprise-iam` and `iam-automation` modules are drafts and not deployed.
 7. **Multi-cloud sync (`cloud_iam_sync.py`) and anomaly detection are stubs.**
